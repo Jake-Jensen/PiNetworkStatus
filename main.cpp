@@ -1,6 +1,6 @@
 ﻿// Jake Jensen, Rpi3B 16x2 LCD kit
 
-#include <wiringPi.h>
+#include <wiringPi.h> 
 #include <stdio.h>
 #include <iostream>
 #include <bitset>
@@ -34,6 +34,8 @@ char Blank = { 0x0 };
 #define D6 5
 #define D7 6
 
+// Pulses the enable pin on and off. Should be a 125us transaction
+// But 5ms is safe for testing purposes.
 void PulseEnable()
 {
 	digitalWrite(EN, HIGH);
@@ -41,6 +43,10 @@ void PulseEnable()
 	digitalWrite(EN, LOW);
 }
 
+// Pulls RegisterSelect (rs) high, which allows data to be written
+// To the data register, then ANDs the incoming char with a 
+// Mask which allows us to select a single bit at a time. 
+// Eg (0000(1)000)
 void DataWriteEX(char value)
 {
 	digitalWrite(EN, LOW);
@@ -58,6 +64,10 @@ void DataWriteEX(char value)
 
 	PulseEnable();
 }
+
+// Does the same as the DataWriteEX function, except
+// Pulls the RS pin low, allowing data to be written
+// To the command register.
 void CommandWriteEX(char value)
 {
 	digitalWrite(EN, LOW);
@@ -75,6 +85,12 @@ void CommandWriteEX(char value)
 
 	PulseEnable();
 }
+
+/*
+The following functions are quick macros essentially to
+Perform a command. Clearing the screen, moving the cursor
+And etc. More of a cheat sheet.
+*/
 
 void ClearScreen() {
 	CommandWriteEX(0x01);
@@ -142,6 +158,16 @@ void CursorHomeBottom() {
 	CommandWriteEX(0xC0);
 }
 
+/* TODO: FIX THE CURSOR CLEARING BUG */
+// The main backbone function. Takes a string, the desired 
+// Cursor position, the requested line (top or bottom), and
+// Checks if we should clear the line of data first. 
+// The string is split into chars piece by piece, and 
+// The resulting char data is fed into the data senders above. 
+// It also checks if the length of the string is greater than
+// 16, and if so, send the rest to the second row. 
+// Bug: Currently doesn't allow starting a message
+// Further on than position 0.
 void StringWrite(std::string Message, int CursorPosition = 0, int Line = 0, bool ClearLine = true) {
 	if (ClearLine) {
 		switch (Line)
@@ -195,6 +221,8 @@ void StringWrite(std::string Message, int CursorPosition = 0, int Line = 0, bool
 	
 }
 
+// Initializes the controller to 8 bit mode (8 wires)
+// Instead of 4 bit mode (double nibble, 4 wires, half speed)
 void Initialize8Bit()
 {
 	digitalWrite(EN, LOW);
@@ -222,6 +250,8 @@ void Initialize8Bit()
 	PulseEnable();
 }
 
+// WiringPi related stuff. Simply tells the host which GPIO pins to
+// Use, and in what mode.
 void InitializePins(unsigned int RSPin, unsigned int RWPin, unsigned int ENPin, unsigned int D0Pin, unsigned int D1Pin, unsigned int D2Pin, unsigned int D3Pin, unsigned int D4Pin, unsigned int D5Pin, unsigned int D6Pin, unsigned int D7Pin) {
 
 	pinMode(RSPin, OUTPUT);
@@ -237,6 +267,9 @@ void InitializePins(unsigned int RSPin, unsigned int RWPin, unsigned int ENPin, 
 	pinMode(D7Pin, OUTPUT);
 }
 
+// Taken from a guy on StackOverflow so long ago, I can't remember
+// His name. Essentially gets the output of a command and returns
+// The string of it.
 std::string exec(const char* cmd) {
 	std::array<char, 128> buffer;
 	std::string result;
@@ -252,7 +285,7 @@ std::string exec(const char* cmd) {
 
 int main(void)
 {
-	wiringPiSetupSys();
+	wiringPiSetupSys(); // Initialize WiringPi
 	
 	InitializePins(RS, RW, EN, D0, D1, D2, D3, D4, D5, D6, D7);
 
@@ -275,6 +308,7 @@ int main(void)
 	std::string Status = "";
 	std::string Printer = "";
 
+        // Pings Google DNS, and checks if the return packet was received.
 	while (true) {
 		Status = exec("ping 8.8.8.8 -c 1");
 		if (Status.find("1 received") != std::string::npos) {
