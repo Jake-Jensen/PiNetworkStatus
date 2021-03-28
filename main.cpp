@@ -312,7 +312,7 @@ int main(void)
 	while (true) {
 		Status = exec("ping 8.8.8.8 -c 1");
 		if (Status.find("1 received") != std::string::npos) {
-			Printer = "Network: Online";
+			Printer = "Network: Online ";
 		}
 		else {
 			Printer = "Network: Offline";
